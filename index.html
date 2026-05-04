@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Stock</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f0e8;--bg2:#ede8df;--bg3:#e5dfd5;
+  --surface:#faf7f2;--surface2:#f0ebe1;
+  --border:#d8d0c0;--border2:#c8bfad;
+  --text:#3a3228;--text2:#6b5f50;--text3:#9b8e7d;
+  --accent:#8b6f47;--accent2:#a07850;
+  --accent-light:#f0e6d6;--accent-lighter:#f7f0e5;
+  --red:#a05050;--red-light:#f5e8e8;
+  --green:#4a7c4a;
+  --stock-color:#7a5f35;
+  --gray-bg:#d8d3cc;--gray-border:#b8b0a4;
+  --shadow:0 2px 12px rgba(100,80,50,0.10);
+  --shadow2:0 4px 24px rgba(100,80,50,0.15);
+  --radius:16px;--radius2:12px;--radius3:8px;
+  --tab-h:64px;--header-h:56px;--app-width:412px;
+  --cell-w:80px;--label-w:26px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg3);min-height:100vh;font-family:'Zen Maru Gothic',sans-serif;color:var(--text);-webkit-font-smoothing:antialiased;}
+#app{width:var(--app-width);max-width:100vw;min-height:100vh;margin:0 auto;background:var(--bg);position:relative;display:flex;flex-direction:column;overflow:hidden;}
+.header{height:var(--header-h);background:var(--surface);border-bottom:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(100,80,50,0.07);}
+.header-logo{font-family:'Quicksand',sans-serif;font-weight:700;font-size:24px;color:var(--accent);letter-spacing:3px;}
+.header-logo span{color:var(--text3);font-size:13px;font-weight:500;font-family:'Zen Maru Gothic',sans-serif;letter-spacing:1px;margin-left:4px;}
+.content{flex:1;overflow-y:auto;padding-bottom:calc(var(--tab-h)+16px);}
+.content::-webkit-scrollbar{width:4px;}
+.content::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.tabbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:var(--app-width);max-width:100vw;height:var(--tab-h);background:var(--surface);border-top:1.5px solid var(--border);display:grid;grid-template-columns:repeat(3,1fr);z-index:200;box-shadow:0 -2px 12px rgba(100,80,50,0.08);}
+.tab-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;padding:6px 4px 8px;position:relative;-webkit-tap-highlight-color:transparent;}
+.tab-item:active{background:var(--bg2);}
+.tab-item.active{background:var(--accent-lighter);}
+.tab-item.active::before{content:'';position:absolute;top:0;left:20%;right:20%;height:3px;background:var(--accent);border-radius:0 0 4px 4px;}
+.tab-icon{font-size:22px;line-height:1;}
+.tab-item.active .tab-icon{transform:scale(1.1);}
+.tab-label{font-size:10px;font-weight:600;color:var(--text3);}
+.tab-item.active .tab-label{color:var(--accent);}
+.wip-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;color:var(--text3);}
+.wip-icon{font-size:48px;}.wip-title{font-size:18px;font-weight:700;color:var(--text2);}.wip-sub{font-size:12px;text-align:center;padding:0 24px;}
+.wip-mini{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--text3);padding:20px;}
+.wip-mini .wip-icon{font-size:32px;}.wip-mini .wip-title{font-size:14px;}
+/* ACCORDION */
+.sec-wrap{padding:12px 14px 8px;}
+.sec-item{margin-bottom:10px;}
+.sec-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface);border-radius:var(--radius2);border:1.5px solid var(--border);cursor:pointer;box-shadow:var(--shadow);-webkit-tap-highlight-color:transparent;}
+.sec-header:active{background:var(--bg2);}
+.sec-left{display:flex;align-items:center;gap:8px;}
+.sec-marker{font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-light);border-radius:6px;padding:2px 7px;}
+.sec-name{font-size:15px;font-weight:700;color:var(--text);}
+.sec-right{display:flex;align-items:center;gap:6px;}
+.btn-icon-sm{width:30px;height:30px;border:none;background:none;cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text3);-webkit-tap-highlight-color:transparent;}
+.btn-icon-sm:active{background:var(--bg2);}
+.sec-chevron{font-size:13px;color:var(--text3);transition:transform 0.2s;display:inline-block;}
+.sec-item.open .sec-chevron{transform:rotate(90deg);}
+.sec-body{display:none;padding:6px 0 4px 0;}
+.sec-item.open .sec-body{display:block;}
+/* SUBCAT DIVIDER */
+.subcat-divider{display:flex;align-items:center;gap:8px;padding:8px 12px 4px;margin-top:2px;}
+.subcat-divider-line{flex:1;height:1.5px;background:var(--border2);}
+.subcat-divider-label{font-size:11px;font-weight:700;color:var(--accent2);letter-spacing:0.5px;white-space:nowrap;background:var(--accent-lighter);padding:2px 8px;border-radius:10px;border:1px solid var(--border);}
+/* TILES */
+.tile-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 12px 8px;}
+.tile-card{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px 6px;background:var(--surface);border-radius:var(--radius2);border:1.5px solid var(--border);cursor:pointer;position:relative;min-height:72px;-webkit-tap-highlight-color:transparent;transition:all 0.15s;}
+.tile-card:active{transform:scale(0.95);}
+.tile-card.grayed{background:var(--gray-bg);border-color:var(--gray-border);opacity:0.55;}
+.tile-card.grayed .tile-name{color:var(--text3);}
+.tile-icon{font-size:28px;line-height:1;}
+.tile-img{width:36px;height:36px;border-radius:50%;object-fit:cover;}
+.tile-name{font-size:10px;font-weight:500;color:var(--text);text-align:center;word-break:break-all;line-height:1.3;}
+.stock-badge{position:absolute;top:-4px;right:-4px;width:16px;height:16px;background:var(--stock-color);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:700;border:1.5px solid var(--surface);}
+.temp-badge{position:absolute;top:-4px;right:-4px;width:16px;height:16px;background:var(--red);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:700;border:1.5px solid var(--surface);}
+.tile-memo-wrap{padding:0 4px 4px;width:100%;}
+.tile-memo-inp{width:100%;border:none;border-top:1px solid var(--border);background:transparent;font-size:9px;font-family:'Zen Maru Gothic',sans-serif;color:var(--text2);outline:none;resize:none;line-height:1.4;padding:3px 2px;min-height:24px;text-align:center;}
+.tile-memo-inp::placeholder{color:var(--border2);}
+/* FAB */
+.fab{position:fixed;right:calc(50% - var(--app-width)/2 + 16px);bottom:calc(var(--tab-h)+16px);width:52px;height:52px;background:var(--accent);border:none;border-radius:50%;font-size:22px;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 18px rgba(139,111,71,0.4);z-index:150;-webkit-tap-highlight-color:transparent;}
+.fab:active{transform:scale(0.92);}
+.float-bar{position:fixed;bottom:calc(var(--tab-h)+10px);left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:300;padding:0 12px;}
+.float-btn{padding:7px 18px;border:none;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Zen Maru Gothic',sans-serif;box-shadow:var(--shadow2);-webkit-tap-highlight-color:transparent;white-space:nowrap;}
+.float-btn-primary{background:var(--accent);color:#fff;}
+.float-btn-cancel{background:var(--surface);color:var(--text2);border:1.5px solid var(--border);}
+.float-btn-green{background:var(--green);color:#fff;}
+.float-btn-red{background:var(--red);color:#fff;}
+/* SPLIT */
+.split-screen{display:block;}
+.split-top{overflow:hidden;border-bottom:2px solid var(--border);background:var(--surface);}
+.split-bottom{background:var(--bg);}
+/* MEAL */
+.meal-scroll-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.meal-table{border-collapse:collapse;table-layout:fixed;}
+.meal-th-label{width:var(--label-w);min-width:var(--label-w);}
+.meal-th-day{width:var(--cell-w);min-width:var(--cell-w);font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-lighter);padding:5px 2px;text-align:center;border:1px solid var(--border);}
+.meal-th-day.today-col{background:var(--accent-light);color:var(--stock-color);}
+.meal-td-label{width:var(--label-w);min-width:var(--label-w);font-size:9px;font-weight:700;color:var(--text3);text-align:center;padding:2px 1px;background:var(--bg2);border:1px solid var(--border);vertical-align:middle;white-space:nowrap;}
+.meal-td{width:var(--cell-w);min-width:var(--cell-w);border:1px solid var(--border);padding:0;vertical-align:top;}
+.meal-inp{width:100%;border:none;background:transparent;font-size:11px;font-family:'Zen Maru Gothic',sans-serif;color:var(--text);outline:none;resize:none;line-height:1.4;padding:4px;min-height:36px;display:block;}
+.meal-inp::placeholder{color:var(--border2);}
+/* SHOP BOTTOM */
+.shop-bottom-wrap{padding:8px 14px 120px;}
+.shop-add-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;background:var(--surface);border:1.5px dashed var(--border2);border-radius:var(--radius2);font-size:13px;color:var(--accent);font-weight:700;cursor:pointer;width:100%;margin-bottom:12px;font-family:'Zen Maru Gothic',sans-serif;-webkit-tap-highlight-color:transparent;}
+.shop-add-btn:active{background:var(--bg2);}
+.empty-shop{text-align:center;color:var(--text3);font-size:13px;padding:32px 16px;}
+/* SEARCH BAR */
+.search-bar-wrap{padding:12px 16px 8px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;}
+.search-input{width:100%;padding:9px 14px;border:1.5px solid var(--border);border-radius:24px;font-size:14px;font-family:'Zen Maru Gothic',sans-serif;color:var(--text);background:var(--bg);outline:none;}
+.search-input:focus{border-color:var(--accent);}
+.search-results{padding:6px 16px 4px;}
+.search-result-item{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface);border-radius:var(--radius3);border:1px solid var(--border);margin-bottom:6px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.search-result-item:active{background:var(--bg2);}
+.search-result-item.selected{background:var(--accent-light);border-color:var(--accent);}
+.search-result-icon{font-size:20px;width:28px;text-align:center;}
+.search-result-name{font-size:13px;font-weight:500;color:var(--text);flex:1;}
+.search-result-check{font-size:16px;color:var(--accent);}
+.temp-add-btn{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--accent-lighter);border:1.5px dashed var(--accent);border-radius:var(--radius3);font-size:13px;color:var(--accent);font-weight:700;cursor:pointer;width:100%;margin-bottom:6px;font-family:'Zen Maru Gothic',sans-serif;-webkit-tap-highlight-color:transparent;}
+/* STOCK BOTTOM SUBCAT */
+.stock-sec-body{padding:6px 10px 4px;}
+.stock-subcat-label{display:flex;align-items:center;gap:8px;padding:8px 0 4px;margin-top:2px;}
+.stock-subcat-label-line{flex:1;height:1.5px;background:var(--border2);}
+.stock-subcat-label-text{font-size:11px;font-weight:700;color:var(--accent2);background:var(--accent-lighter);padding:2px 8px;border-radius:10px;border:1px solid var(--border);white-space:nowrap;}
+/* SETTINGS */
+.settings-wrap{padding:20px 16px;}
+.settings-menu-btn{display:flex;align-items:center;gap:14px;padding:16px 18px;background:var(--surface);border-radius:var(--radius2);border:1.5px solid var(--border);cursor:pointer;margin-bottom:12px;box-shadow:var(--shadow);-webkit-tap-highlight-color:transparent;}
+.settings-menu-btn:active{background:var(--bg2);}
+.settings-menu-icon{font-size:28px;}
+.settings-menu-text{flex:1;}
+.settings-menu-title{font-size:16px;font-weight:700;color:var(--text);}
+.settings-menu-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.settings-menu-arrow{font-size:16px;color:var(--text3);}
+.settings-back-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;background:none;border:none;cursor:pointer;font-size:14px;color:var(--accent);font-family:'Zen Maru Gothic',sans-serif;font-weight:700;margin:8px 0 0;-webkit-tap-highlight-color:transparent;}
+.cat-child-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface2);border-radius:var(--radius3);border:1px solid var(--border);margin-bottom:5px;font-size:13px;color:var(--text2);}
+.cat-child-left{display:flex;align-items:center;gap:6px;}
+.cat-child-arrow{color:var(--accent);font-size:12px;}
+.no-sub-msg{font-size:11px;color:var(--text3);padding:4px 12px 8px;font-style:italic;}
+.add-child-btn{display:flex;align-items:center;gap:6px;padding:7px 12px;background:none;border:1.5px dashed var(--border2);border-radius:var(--radius3);font-size:12px;color:var(--text3);cursor:pointer;width:100%;margin-bottom:5px;font-family:'Zen Maru Gothic',sans-serif;-webkit-tap-highlight-color:transparent;}
+.add-main-cat-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:var(--surface);border:1.5px dashed var(--border2);border-radius:var(--radius2);font-size:14px;color:var(--text3);cursor:pointer;width:100%;font-family:'Zen Maru Gothic',sans-serif;font-weight:500;margin-top:8px;-webkit-tap-highlight-color:transparent;}
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(50,40,30,0.45);z-index:500;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity 0.22s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal-sheet{width:var(--app-width);max-width:100vw;background:var(--surface);border-radius:var(--radius) var(--radius) 0 0;padding:0;transform:translateY(100%);transition:transform 0.26s cubic-bezier(0.32,0.72,0,1);max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.modal-overlay.open .modal-sheet{transform:translateY(0);}
+.modal-handle{width:40px;height:4px;background:var(--border2);border-radius:2px;margin:12px auto 4px;}
+.modal-title{font-size:16px;font-weight:700;color:var(--text);padding:8px 18px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-close{background:none;border:none;font-size:22px;color:var(--text3);cursor:pointer;padding:2px 6px;-webkit-tap-highlight-color:transparent;}
+.modal-body{padding:18px 18px 0;}
+.form-group{margin-bottom:18px;}
+.form-label{font-size:12px;font-weight:700;color:var(--text2);letter-spacing:0.5px;margin-bottom:6px;display:block;}
+.form-input{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--radius3);font-size:14px;color:var(--text);background:var(--bg);font-family:'Zen Maru Gothic',sans-serif;outline:none;}
+.form-input:focus{border-color:var(--accent);}
+.form-select{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--radius3);font-size:14px;color:var(--text);background:var(--bg);font-family:'Zen Maru Gothic',sans-serif;outline:none;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239b8e7d' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;}
+.stock-toggle-wrap{display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius3);cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.stock-toggle-label{font-size:14px;color:var(--text);flex:1;}
+.stock-toggle-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.toggle-switch{width:44px;height:24px;background:var(--border2);border-radius:12px;position:relative;transition:background 0.2s;flex-shrink:0;}
+.toggle-switch.on{background:var(--stock-color);}
+.toggle-knob{width:20px;height:20px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;transition:left 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.2);}
+.toggle-switch.on .toggle-knob{left:22px;}
+.icon-picker-wrap{display:flex;flex-direction:column;gap:8px;}
+.icon-preview-row{display:flex;align-items:center;gap:10px;}
+.icon-preview-box{width:56px;height:56px;background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius2);display:flex;align-items:center;justify-content:center;font-size:32px;overflow:hidden;}
+.icon-picker-btns{display:flex;flex-direction:column;gap:6px;flex:1;}
+.btn-sm{padding:7px 13px;border:1.5px solid var(--border);border-radius:var(--radius3);background:var(--bg);font-size:12px;color:var(--text2);cursor:pointer;font-family:'Zen Maru Gothic',sans-serif;font-weight:500;text-align:left;-webkit-tap-highlight-color:transparent;}
+.emoji-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;max-height:180px;overflow-y:auto;padding:4px;}
+.emoji-cell{font-size:24px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.emoji-cell.selected{background:var(--accent-light);outline:2px solid var(--accent);}
+.btn-primary{width:100%;padding:13px;background:var(--accent);border:none;border-radius:var(--radius2);font-size:15px;font-weight:700;color:#fff;cursor:pointer;font-family:'Zen Maru Gothic',sans-serif;-webkit-tap-highlight-color:transparent;}
+.btn-primary:active{background:var(--accent2);}
+.btn-cancel{width:100%;padding:11px;background:none;border:1.5px solid var(--border);border-radius:var(--radius2);font-size:14px;color:var(--text2);cursor:pointer;font-family:'Zen Maru Gothic',sans-serif;margin-top:8px;-webkit-tap-highlight-color:transparent;}
+.btn-danger{width:100%;padding:11px;background:none;border:1.5px solid var(--red);border-radius:var(--radius2);font-size:14px;font-weight:600;color:var(--red);cursor:pointer;font-family:'Zen Maru Gothic',sans-serif;margin-top:8px;-webkit-tap-highlight-color:transparent;}
+/* CONFIRM */
+.confirm-overlay{position:fixed;inset:0;background:rgba(50,40,30,0.5);z-index:700;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.2s;}
+.confirm-overlay.open{opacity:1;pointer-events:all;}
+.confirm-box{width:290px;background:var(--surface);border-radius:var(--radius);padding:24px 20px 18px;text-align:center;box-shadow:var(--shadow2);}
+.confirm-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;}
+.confirm-sub{font-size:13px;color:var(--text3);margin-bottom:20px;}
+.confirm-btns{display:flex;gap:10px;}
+.confirm-btn-cancel{flex:1;padding:10px;border:1.5px solid var(--border);border-radius:var(--radius3);background:none;font-size:14px;color:var(--text2);cursor:pointer;font-family:'Zen Maru Gothic',sans-serif;}
+.confirm-btn-ok{flex:1;padding:10px;border:none;border-radius:var(--radius3);background:var(--red);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:'Zen Maru Gothic',sans-serif;}
+.confirm-btn-green{flex:1;padding:10px;border:none;border-radius:var(--radius3);background:var(--green);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:'Zen Maru Gothic',sans-serif;}
+.toast{position:fixed;bottom:calc(var(--tab-h)+80px);left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:#fff;padding:10px 20px;border-radius:24px;font-size:13px;font-weight:500;opacity:0;pointer-events:none;transition:opacity 0.25s,transform 0.25s;z-index:999;white-space:nowrap;max-width:90%;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.loading-wrap{display:flex;align-items:center;justify-content:center;min-height:200px;color:var(--text3);font-size:14px;gap:10px;}
+.bulk-action-bar{display:flex;gap:6px;padding:8px 14px 4px;flex-wrap:wrap;}
+.bulk-btn{padding:5px 12px;border:1.5px solid var(--border);border-radius:16px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Zen Maru Gothic',sans-serif;background:var(--surface);color:var(--text2);-webkit-tap-highlight-color:transparent;}
+.bulk-btn:active{background:var(--bg2);}
+.bulk-btn.active{background:var(--accent-light);border-color:var(--accent);color:var(--accent);}
+.bulk-select-mode .tile-card{border-color:var(--border2);}
+.bulk-select-mode .tile-card.bulk-selected{background:var(--accent-light);border-color:var(--accent);}
+.spinner{width:22px;height:22px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#imageUploadInput{display:none;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header"><div class="header-logo">Stock<span>ストック管理</span></div></div>
+  <div class="content" id="content"><div class="loading-wrap"><div class="spinner"></div>データを読み込み中...</div></div>
+  <nav class="tabbar">
+    <div class="tab-item" data-tab="buymono" onclick="switchTab('buymono')"><span class="tab-icon">🛒</span><span class="tab-label">買うものリスト</span></div>
+    <div class="tab-item" data-tab="stock" onclick="switchTab('stock')"><span class="tab-icon">📦</span><span class="tab-label">ストック管理</span></div>
+    <div class="tab-item" data-tab="settings" onclick="switchTab('settings')"><span class="tab-icon">⚙️</span><span class="tab-label">設定</span></div>
+  </nav>
+</div>
+
+<!-- Category Modal -->
+<div class="modal-overlay" id="catModal">
+  <div class="modal-sheet"><div class="modal-handle"></div>
+    <div class="modal-title"><span id="catModalTitle">カテゴリを追加</span><button class="modal-close" onclick="closeCatModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">カテゴリ名</label><input class="form-input" id="catNameInput" type="text" placeholder="カテゴリ名を入力"></div>
+      <button class="btn-primary" onclick="saveCat()">保存する</button>
+      <button class="btn-cancel" onclick="closeCatModal()">キャンセル</button>
+      <button class="btn-danger" id="catDeleteBtn" onclick="confirmDeleteCat()" style="display:none">削除する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Product Modal -->
+<div class="modal-overlay" id="prodModal">
+  <div class="modal-sheet" style="display:flex;flex-direction:column;"><div class="modal-handle"></div>
+    <div class="modal-title"><span id="prodModalTitle">商品を追加</span><button class="modal-close" onclick="closeProdModal()">✕</button></div>
+    <div class="modal-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+      <div class="form-group"><label class="form-label">アイコン / 画像</label>
+        <div class="icon-picker-wrap">
+          <div class="icon-preview-row">
+            <div class="icon-preview-box" id="iconPreview"><span>🛍️</span></div>
+            <div class="icon-picker-btns">
+              <button class="btn-sm" onclick="showEmojiPicker()">😊 絵文字から選ぶ</button>
+              <button class="btn-sm" onclick="document.getElementById('imageUploadInput').click()">📷 画像をアップロード</button>
+            </div>
+          </div>
+          <div id="emojiPickerWrap" style="display:none"><div class="emoji-grid" id="emojiGrid"></div></div>
+
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">商品名</label><input class="form-input" id="prodNameInput" type="text" placeholder="商品名を入力"></div>
+      <div class="form-group"><label class="form-label">カテゴリ</label><select class="form-select" id="prodCat1Select" onchange="updateSubCatOptions()"><option value="">第1カテゴリを選択</option></select></div>
+      <div class="form-group"><select class="form-select" id="prodCat2Select"><option value="">第2カテゴリを選択（任意）</option></select></div>
+      <div class="form-group"><label class="form-label">ストック設定</label>
+        <div class="stock-toggle-wrap" onclick="toggleStock()">
+          <div><div class="stock-toggle-label">📦 ストック品にする</div><div class="stock-toggle-sub">ストック品はアイコンにマークが付きます</div></div>
+          <div class="toggle-switch" id="stockToggle"><div class="toggle-knob"></div></div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:14px 18px 24px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0;">
+      <button class="btn-primary" onclick="saveProd()">保存する</button>
+      <button class="btn-cancel" onclick="closeProdModal()">キャンセル</button>
+      <button class="btn-danger" id="prodDeleteBtn" onclick="confirmDeleteProd()" style="display:none">削除する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Picker Modal -->
+<div class="modal-overlay" id="pickerModal">
+  <div class="modal-sheet"><div class="modal-handle"></div>
+    <div class="modal-title"><span>商品を選ぶ</span><button class="modal-close" onclick="closePickerModal()">✕</button></div>
+    <div class="search-bar-wrap">
+      <input class="search-input" id="pickerSearchInput" type="text" placeholder="🔍 商品名で検索..." oninput="onPickerSearch(this.value)">
+    </div>
+    <div id="pickerSearchResults" style="display:none"></div>
+    <div class="modal-body" id="pickerBody" style="padding:8px 0 0;"></div>
+    <div style="position:sticky;bottom:0;background:var(--surface);padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:10px;">
+      <button class="float-btn float-btn-cancel" style="flex:1" onclick="closePickerModal()">キャンセル</button>
+      <button class="float-btn float-btn-primary" style="flex:1" onclick="confirmPicker()">完了</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Move Category Modal -->
+<div class="modal-overlay" id="bulkCatModal">
+  <div class="modal-sheet" style="display:flex;flex-direction:column;">
+    <div class="modal-handle"></div>
+    <div class="modal-title">
+      <span>移動先カテゴリを選択</span>
+      <button class="modal-close" onclick="closeModal('bulkCatModal')">✕</button>
+    </div>
+    <div class="modal-body" style="flex:1;overflow-y:auto;">
+      <div class="form-group">
+        <label class="form-label">第1カテゴリ</label>
+        <select class="form-select" id="bulkCat1Select" onchange="updateBulkSubCat()"><option value="">選択してください</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">第2カテゴリ（任意）</label>
+        <select class="form-select" id="bulkCat2Select"><option value="">なし</option></select>
+      </div>
+    </div>
+    <div style="padding:14px 18px 24px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0;">
+      <button class="btn-primary" onclick="executeBulkMove()">移動する</button>
+      <button class="btn-cancel" onclick="closeModal('bulkCatModal')">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="confirm-overlay" id="confirmModal">
+  <div class="confirm-box">
+    <div class="confirm-title" id="confirmTitle">確認</div>
+    <div class="confirm-sub" id="confirmSub"></div>
+    <div class="confirm-btns" id="confirmBtns">
+      <button class="confirm-btn-cancel" onclick="closeConfirm()">キャンセル</button>
+      <button class="confirm-btn-ok" id="confirmOkBtn" onclick="executeConfirm()">OK</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="imageUploadInput" accept="image/*" onchange="handleImageUpload(event)" style="position:fixed;left:-9999px;opacity:0;pointer-events:none;">
+
+<script>
+var SUPABASE_URL='https://khrbhvshzzqvclsthxtz.supabase.co';
+var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtocmJodnNoenpxdmNsc3RoeHR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1MzY5NTUsImV4cCI6MjA5MzExMjk1NX0.AxyNWIS19N8IhgEBSAL6AEiXHBhToYHiZf9OSC5P2jU';
+var sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+var EMOJIS=['🥩','🐟','🥦','🥕','🧅','🥚','🍅','🫑','🥬','🌽','🧄','🥒','🍆','🫒','🧆','🍎','🍊','🍋','🍇','🍓','🫐','🍌','🍑','🥭','🍒','🍍','🥝','🍈','🍐','🍏','🍞','🥐','🥨','🍚','🍜','🍝','🥗','🍲','🥘','🫕','🍱','🥟','🧁','🍰','🍫','🥛','🧀','🫙','🧂','🍯','🫖','☕','🧃','🥤','🍺','🍷','🥂','🧋','🍵','🧹','🧽','🧴','🧼','🪥','🧺','🪣','🚽','🛁','🪒','💊','🩹','💄','🧻','🪤','🛒','📦','🏷️','💳','🗒️','📝','🔖','📌','🛍️','🎁','⭐','💫','✨','🌿','🌱','🌾','🍃','🌸','🌼','🌻','🍀','🌲','🎋','🪴','🌵','🌴','🍁','🏠','🚿','💡','🔌','🧯','🛠️','🔧','🪝','🐄','🐖','🐔','🦐','🦑','🦞','🦀','🐙','🐣','🥓','🌭','🍗','🧊','🥫','🍼','🥜','🌰','🫘','🧇','🥞'];
+var DAYS8=['月','火','水','木','金','土','日','月'];
+var ROW_LABELS=['昼','夜','メモ'];
+var ROW_KEYS=['lunch','dinner','memo'];
+var TEMP_ICON='🛍️';
+
+var categories=[],products=[],stockStatus={},mealPlans={};
+var shoppingList=[],boughtList=[];
+var mealSaveTimers={};
+var pickerSelected={};
+var shopSelected={},boughtSelected={};
+var catModalMode=null,catModalParentId=null,catModalTargetId=null;
+var prodModalMode=null,prodModalTargetId=null;
+var prodIsStock=false,prodIconType='emoji',prodIconValue='🛍️';
+var prodImageFile=null,prodImageUrl=null;
+var confirmCallback=null;
+var currentSettingsView='menu';
+var gochiPendingTempItems=[]; // temp items pending register dialog
+
+function esc(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function renderContent(html){document.getElementById('content').innerHTML=html;}
+var toastTimer;
+function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show');},2200);}
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function closeCatModal(e){if(e&&e.target!==document.getElementById('catModal'))return;closeModal('catModal');}
+function closeProdModal(e){if(e&&e.target!==document.getElementById('prodModal'))return;closeModal('prodModal');}
+function closePickerModal(e){if(e&&e.target!==document.getElementById('pickerModal'))return;closeModal('pickerModal');pickerSelected={};}
+function closeConfirm(){closeModal('confirmModal');confirmCallback=null;}
+function executeConfirm(){closeModal('confirmModal');if(confirmCallback)confirmCallback();}
+function removeFabs(){document.querySelectorAll('.fab,.float-bar').forEach(function(el){el.remove();});}
+function toggleSec(id){var el=document.getElementById(id);if(el)el.classList.toggle('open');}
+
+function getTodayCol(){var d=new Date().getDay();if(d===1)return 0;if(d===2)return 1;if(d===3)return 2;if(d===4)return 3;if(d===5)return 4;if(d===6)return 5;return 6;}
+
+// ===== BULK ACTION =====
+var bulkMode=''; // 'move' | 'stock' | ''
+var bulkSelected={};
+
+function toggleBulkMode(mode){
+  if(bulkMode===mode){cancelBulkMode();return;}
+  bulkMode=mode;bulkSelected={};
+  renderProducts();
+}
+
+function cancelBulkMode(){bulkMode='';bulkSelected={};renderProducts();}
+
+function toggleBulkSelect(productId){
+  bulkSelected[productId]=!bulkSelected[productId];
+  var card=document.getElementById('tile-bulk-'+productId);
+  if(card) card.classList.toggle('bulk-selected',!!bulkSelected[productId]);
+  // カウント更新
+  var btn=document.querySelector('.bulk-btn[onclick*="confirmBulkAction"]');
+  if(btn){var cnt=Object.keys(bulkSelected).filter(function(id){return bulkSelected[id];}).length;btn.textContent='✓ 実行 ('+cnt+')';}
+}
+
+function confirmBulkAction(){
+  var sel=Object.keys(bulkSelected).filter(function(id){return bulkSelected[id];});
+  if(!sel.length){showToast('商品を選択してください');return;}
+  if(bulkMode==='move'){
+    // カテゴリ選択モーダルを開く
+    var s1=document.getElementById('bulkCat1Select');
+    var mcs=categories.filter(function(c){return !c.parent_id;}).sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
+    s1.innerHTML='<option value="">選択してください</option>';
+    mcs.forEach(function(c){var o=document.createElement('option');o.value=c.id;o.textContent=c.name;s1.appendChild(o);});
+    document.getElementById('bulkCat2Select').innerHTML='<option value="">なし</option>';
+    openModal('bulkCatModal');
+  } else if(bulkMode==='stock'){
+    executeBulkStock();
+  }
+}
+
+function updateBulkSubCat(){
+  var cat1Id=document.getElementById('bulkCat1Select').value;
+  var s2=document.getElementById('bulkCat2Select');
+  s2.innerHTML='<option value="">なし</option>';
+  if(cat1Id){
+    var subs=categories.filter(function(c){return c.parent_id===cat1Id;}).sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
+    subs.forEach(function(c){var o=document.createElement('option');o.value=c.id;o.textContent=c.name;s2.appendChild(o);});
+  }
+}
+
+async function executeBulkMove(){
+  var cat1Id=document.getElementById('bulkCat1Select').value||null;
+  var cat2Id=document.getElementById('bulkCat2Select').value||null;
+  if(!cat1Id){showToast('第1カテゴリを選択してください');return;}
+  var sel=Object.keys(bulkSelected).filter(function(id){return bulkSelected[id];});
+  try{
+    for(var i=0;i<sel.length;i++){
+      var pid=sel[i];
+      await sb.from('products').update({cat1_id:cat1Id,cat2_id:cat2Id}).eq('id',pid);
+      var idx=products.findIndex(function(p){return p.id===pid;});
+      if(idx>=0){products[idx].cat1_id=cat1Id;products[idx].cat2_id=cat2Id;}
+    }
+    closeModal('bulkCatModal');
+    showToast(sel.length+'件移動しました');
+    bulkMode='';bulkSelected={};
+    renderProducts();
+  }catch(e){showToast('失敗しました: '+e.message);}
+}
+
+async function executeBulkStock(){
+  var sel=Object.keys(bulkSelected).filter(function(id){return bulkSelected[id];});
+  try{
+    for(var i=0;i<sel.length;i++){
+      var pid=sel[i];
+      await sb.from('products').update({is_stock:true}).eq('id',pid);
+      var idx=products.findIndex(function(p){return p.id===pid;});
+      if(idx>=0) products[idx].is_stock=true;
+    }
+    showToast(sel.length+'件をストック品に登録しました');
+    bulkMode='';bulkSelected={};
+    renderProducts();
+  }catch(e){showToast('失敗しました: '+e.message);}
+}
+
+// ===== INIT =====
+async function init(){
+  try{
+    var cr=await sb.from('categories').select('*').order('sort_order');categories=cr.data||[];
+    var pr=await sb.from('products').select('*').order('sort_order');products=pr.data||[];
+    var sr=await sb.from('stock_status').select('*');stockStatus={};(sr.data||[]).forEach(function(s){stockStatus[s.product_id]=s.status;});
+    var mr=await sb.from('meal_plans').select('*').order('day_of_week');mealPlans={};(mr.data||[]).forEach(function(m){mealPlans[m.day_of_week]=m;});
+    var slr=await sb.from('shopping_list').select('*').order('sort_order');shoppingList=slr.data||[];
+    var blr=await sb.from('bought_list').select('*').order('sort_order');boughtList=blr.data||[];
+    switchTab('buymono');
+  }catch(e){renderContent('<div class="wip-screen"><div class="wip-icon">⚠️</div><div class="wip-title">読み込みエラー</div><div class="wip-sub">'+e.message+'</div></div>');}
+}
+
+// ===== TAB =====
+function switchTab(tab){
+  document.querySelectorAll('.tab-item').forEach(function(el){el.classList.toggle('active',el.dataset.tab===tab);});
+  removeFabs();shopSelected={};boughtSelected={};
+  if(tab==='buymono') renderBuymono();
+  else if(tab==='stock') renderStock();
+  else if(tab==='settings'){currentSettingsView='menu';renderSettings();}
+}
+
+// ===== TILE HELPERS =====
+function getTileIconHtml(p){
+  if(p.icon_type==='image'&&p.image_url) return '<img class="tile-img" src="'+esc(p.image_url)+'" alt="">';
+  return '<span class="tile-icon">'+esc(p.icon_value||'🛍️')+'</span>';
+}
+
+function buildTileCard(p,mode,selectedObj){
+  var isGrayed=selectedObj&&(selectedObj[p.id]||selectedObj[p.id]==='ng');
+  var grayClass=isGrayed?' grayed':'';
+  // bulkモードの選択はbulk-selectedクラス
+  if(mode==='bulk'&&selectedObj&&selectedObj[p.id]) grayClass=' bulk-selected';
+  var badge='';
+  if(p._isTemp) badge='<div class="temp-badge">!</div>';
+  else if(p.is_stock) badge='<div class="stock-badge">S</div>';
+  var onclick='';
+  if(mode==='edit') onclick='openEditProd(\''+p.id+'\')';
+  else if(mode==='pick') onclick='togglePickerSelect(\''+p.id+'\')';
+  else if(mode==='shop') onclick='toggleShopSelect(\''+p.id+'\')';
+  else if(mode==='stock-top') onclick='toggleBoughtSelect(\''+p.id+'\')';
+  else if(mode==='stock-bottom') onclick='toggleStockStatus(\''+p.id+'\')';
+  else if(mode==='bulk') onclick='toggleBulkSelect(\''+p.id+'\')';
+  var memoHtml='';
+  if(mode==='shop'){
+    var slItem=shoppingList.find(function(s){
+      if(p._isTemp) return s.id===p.id;
+      return s.product_id===p.id;
+    });
+    var memoVal=(slItem&&slItem.memo)?slItem.memo:'';
+    var slId=slItem?slItem.id:'';
+    memoHtml='<div class="tile-memo-wrap" onclick="event.stopPropagation()">'
+      +'<textarea class="tile-memo-inp" placeholder="メモ" onchange="saveShopMemo(\''+slId+'\',this.value)">'+esc(memoVal)+'</textarea>'
+      +'</div>';
+  }
+  return '<div class="tile-card'+grayClass+'" id="tile-'+mode+'-'+p.id+'" onclick="'+onclick+'" style="'+(mode==='shop'?'padding-bottom:0;':'')+'">'
+    +'<div style="position:relative;width:38px;height:38px;display:flex;align-items:center;justify-content:center;">'
+    +getTileIconHtml(p)+badge+'</div>'
+    +'<div class="tile-name">'+esc(p.name)+'</div>'
+    +memoHtml
+    +'</div>';
+}
+
+
+// カテゴリ順を維持したフラット表示（アコーディオンなし）
+function buildFlatTiles(prodList, mode, selectedObj){
+  var sorted = getSortedProds(prodList);
+  if(sorted.length===0) return '';
+  // tile idの重複をさらに防ぐため描画済みidを追跡
+  var renderedIds={};
+  var html='<div class="tile-grid" style="padding:8px 12px;">';
+  sorted.forEach(function(p){
+    var tileId='tile-'+mode+'-'+p.id;
+    if(!renderedIds[tileId]){
+      renderedIds[tileId]=true;
+      html+=buildTileCard(p,mode,selectedObj);
+    }
+  });
+  html+='</div>';
+  return html;
+}
+// Build sortable product list (respects category order) - 重複排除
+function getSortedProds(prodList){
+  var mainCats=categories.filter(function(c){return !c.parent_id;}).sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
+  var result=[];
+  var usedIds={};
+
+  // まず全商品をidでユニーク化（同じidは1つだけ残す）
+  var uniqueProds=[];
+  var seen={};
+  prodList.forEach(function(p){
+    var key=p._isTemp?('temp_'+p.id):p.id;
+    if(!seen[key]){seen[key]=true;uniqueProds.push(p);}
+  });
+
+  // temp itemsは先に追加
+  uniqueProds.filter(function(p){return p._isTemp;}).forEach(function(p){
+    if(!usedIds[p.id]){usedIds[p.id]=true;result.push(p);}
+  });
+
+  mainCats.forEach(function(mc){
+    var subCats=categories.filter(function(c){return c.parent_id===mc.id;}).sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
+    // cat2なし、cat1がこのmcの商品
+    uniqueProds.filter(function(p){return !p._isTemp&&p.cat1_id===mc.id&&!p.cat2_id;}).forEach(function(p){
+      if(!usedIds[p.id]){usedIds[p.id]=true;result.push(p);}
+    });
+    // cat2あり
+    subCats.forEach(function(sc){
+      uniqueProds.filter(function(p){return !p._isTemp&&p.cat2_id===sc.id;}).forEach(function(p){
+        if(!usedIds[p.id]){usedIds[p.id]=true;result.push(p);}
+      });
+    });
+  });
+  // カテゴリ未設定
+  uniqueProds.forEach(function(p){if(!usedIds[p.id]){usedIds[p.id]=true;result.push(p);}});
+  return result;
+}
+
+function buildProductAccordion(prodList,mode,selectedObj,idPrefix){
+  var mainCats=categories.filter(function(c){return !c.parent_id;}).sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
+  var html='';var usedIds={};
+  // Also show temp items (no category)
+  var tempItems=prodList.filter(function(p){return p._isTemp;});
+  if(tempItems.length>0){
+    var tid=idPrefix+'sec-temp';
+    html+='<div class="sec-item" id="'+tid+'">';
+    html+='<div class="sec-header" onclick="toggleSec(\''+tid+'\')">'
+      +'<div class="sec-left"><span class="sec-marker" style="background:var(--red-light);color:var(--red);">！</span><span class="sec-name">一時追加</span></div>'
+      +'<div class="sec-right"><span class="sec-chevron">▶</span></div>'
+      +'</div><div class="sec-body"><div class="tile-grid">';
+    tempItems.forEach(function(p){usedIds[p.id]=true;html+=buildTileCard(p,mode,selectedObj);});
+    html+='</div></div></div>';
+  }
+  mainCats.forEach(function(mc){
+    var subCats=categories.filter(function(c){return c.parent_id===mc.id;}).sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
+    var directProds=prodList.filter(function(p){return !p._isTemp&&p.cat1_id===mc.id&&!p.cat2_id;});
+    var hasAny=directProds.length>0||subCats.some(function(sc){return prodList.some(function(p){return !p._isTemp&&p.cat2_id===sc.id;});});
+    if(!hasAny)return;
+    var sid=idPrefix+'sec-'+mc.id;
+    html+='<div class="sec-item" id="'+sid+'">';
+    html+='<div class="sec-header" onclick="toggleSec(\''+sid+'\')">'
+      +'<div class="sec-left"><span class="sec-marker">◆</span><span class="sec-name">'+esc(mc.name)+'</span></div>'
+      +'<div class="sec-right"><span class="sec-chevron">▶</span></div>'
+      +'</div><div class="sec-body">';
+    if(directProds.length>0){html+='<div class="tile-grid">';directProds.forEach(function(p){usedIds[p.id]=true;html+=buildTileCard(p,mode,selectedObj);});html+='</div>';}
+    subCats.forEach(function(sc){
+      var sp=prodList.filter(function(p){return !p._isTemp&&p.cat2_id===sc.id;});
+      if(!sp.length)return;
+      html+='<div class="subcat-divider"><div class="subcat-divider-line"></div><div class="subcat-divider-label">'+esc(sc.name)+'</div><div class="subcat-divider-line"></div></div>';
+      html+='<div class="tile-grid">';sp.forEach(function(p){usedIds[p.id]=true;html+=buildTileCard(p,mode,selectedObj);});html+='</div>';
+    });
+    html+='</div></div>';
+  });
+  var uncats=prodList.filter(function(p){return !usedIds[p.id]&&!p._isTemp;});
+  if(uncats.length>0){
+    var uid=idPrefix+'sec-uncat';
+    html+='<div class="sec-item" id="'+uid+'">';
+    html+='<div class="sec-header" onclick="toggleSec(\''+uid+'\')">'
+      +'<div class="sec-left"><span class="sec-marker">◆</span><span class="sec-name">カテゴリ未設定</span></div>'
+      +'<div class="sec-right"><span class="sec-chevron">▶</span></div>'
+      +'</div><div class="sec-body"><div class="tile-grid">';
+    uncats.forEach(function(p){html+=buildTileCard(p,mode,selectedObj);});
+    html+='</div></div></div>';
+  }
+  return html;
+}
+
+// ===== BUYMONO =====
+function renderBuymono(){
+  var todayCol=getTodayCol();
+  var tbl='<div class="meal-scroll-wrap"><table class="meal-table"><tr><th class="meal-th-label"></th>';
+  for(var c=0;c<8;c++) tbl+='<th class="meal-th-day'+(c===todayCol?' today-col':'')+'" style="width:var(--cell-w)">'+DAYS8[c]+'</th>';
+  tbl+='</tr>';
+  for(var r=0;r<3;r++){
+    var rk=ROW_KEYS[r];
+    tbl+='<tr><td class="meal-td-label">'+ROW_LABELS[r]+'</td>';
+    for(var c2=0;c2<8;c2++){
+      var mp=mealPlans[c2]||{};var val=mp[rk]||'';
+      tbl+='<td class="meal-td"><textarea class="meal-inp" data-col="'+c2+'" data-rk="'+rk+'" onchange="saveMealText('+c2+',\''+rk+'\',this.value)">'+esc(val)+'</textarea></td>';
+    }
+    tbl+='</tr>';
+  }
+  tbl+='</table></div>';
+
+  var slItems=getShopListItems();
+  var bottomHtml='<div class="shop-bottom-wrap">';
+  bottomHtml+='<button class="shop-add-btn" onclick="openShopPicker()">＋ 追加</button>';
+  if(slItems.length===0){
+    bottomHtml+='<div class="empty-shop">追加ボタンから商品を追加してください</div>';
+  } else {
+    bottomHtml+=buildFlatTiles(slItems,'shop',shopSelected);
+  }
+  bottomHtml+='</div>';
+
+  var html='<div class="split-screen"><div class="split-top">'+tbl+'</div><div class="split-bottom" id="shopBottom">'+bottomHtml+'</div></div>';
+  renderContent(html);
+  updateShopFloatBar();
+}
+
+// Get shopping list as product-like objects (including temp items) - 重複排除
+function getShopListItems(){
+  var result=[];
+  var seenProductIds={};
+  var seenTempIds={};
+  shoppingList.forEach(function(sl){
+    if(sl.temp_name){
+      if(!seenTempIds[sl.id]){
+        seenTempIds[sl.id]=true;
+        result.push({id:sl.id,name:sl.temp_name,icon_value:sl.temp_icon||TEMP_ICON,icon_type:'emoji',_isTemp:true,_slId:sl.id,cat1_id:null,cat2_id:null,is_stock:false});
+      }
+    } else {
+      if(sl.product_id && !seenProductIds[sl.product_id]){
+        seenProductIds[sl.product_id]=true;
+        var p=products.find(function(pp){return pp.id===sl.product_id;});
+        if(p) result.push(Object.assign({},p,{_slId:sl.id}));
+      }
+    }
+  });
+  return result;
+}
+
+function getBoughtListItems(){
+  var result=[];
+  var seenProductIds={};
+  var seenTempIds={};
+  boughtList.forEach(function(bl){
+    if(bl.temp_name){
+      if(!seenTempIds[bl.id]){
+        seenTempIds[bl.id]=true;
+        result.push({id:bl.id,name:bl.temp_name,icon_value:bl.temp_icon||TEMP_ICON,icon_type:'emoji',_isTemp:true,_blId:bl.id,cat1_id:null,cat2_id:null,is_stock:false});
+      }
+    } else {
+      if(bl.product_id && !seenProductIds[bl.product_id]){
+        seenProductIds[bl.product_id]=true;
+        var p=products.find(function(pp){return pp.id===bl.product_id;});
+        if(p) result.push(Object.assign({},p,{_blId:bl.id}));
+      }
+    }
+  });
+  return result;
+}
+
+function saveMealText(colIdx,rk,value){
+  var key=colIdx+'-'+rk;clearTimeout(mealSaveTimers[key]);
+  mealSaveTimers[key]=setTimeout(function(){doSaveMeal(colIdx,rk,value);},600);
+}
+async function doSaveMeal(colIdx,field,value){
+  if(!mealPlans[colIdx]) mealPlans[colIdx]={day_of_week:colIdx,lunch:'',dinner:'',memo:''};
+  mealPlans[colIdx][field]=value;var mp=mealPlans[colIdx];
+  try{
+    if(mp.id){var upd={};upd[field]=value;await sb.from('meal_plans').update(upd).eq('id',mp.id);}
+    else{
+      var ins={day_of_week:colIdx,lunch:mp.lunch||'',dinner:mp.dinner||'',memo:mp.memo||''};
+      var r=await sb.from('meal_plans').upsert(ins,{onConflict:'day_of_week'}).select().single();
+      if(r.data)mealPlans[colIdx]=r.data;
+    }
+  }catch(e){}
+}
+
+// ===== PICKER =====
+function openShopPicker(){
+  pickerSelected={};
+  var excludeIds={};
+  shoppingList.forEach(function(sl){if(sl.product_id)excludeIds[sl.product_id]=true;});
+  // ストック品は追加モーダルに表示しない
+  var available=products.filter(function(p){return !excludeIds[p.id] && !p.is_stock;});
+  var html='<div class="sec-wrap" style="padding:8px 0;">';
+  if(available.length===0) html+='<div class="empty-shop">追加できる商品がありません</div>';
+  else html+=buildProductAccordion(available,'pick',pickerSelected,'picker-');
+  html+='</div>';
+  document.getElementById('pickerBody').innerHTML=html;
+  document.getElementById('pickerSearchInput').value='';
+  document.getElementById('pickerSearchResults').style.display='none';
+  openModal('pickerModal');
+}
+
+function onPickerSearch(val){
+  var q=val.trim();
+  var resultsEl=document.getElementById('pickerSearchResults');
+  if(!q){resultsEl.style.display='none';return;}
+  resultsEl.style.display='block';
+  // Exclude already in shopping list
+  var excludeIds={};shoppingList.forEach(function(sl){if(sl.product_id)excludeIds[sl.product_id]=true;});
+  var matched=products.filter(function(p){return !excludeIds[p.id]&&p.name.indexOf(q)>=0;});
+  var html='<div class="search-results">';
+  matched.forEach(function(p){
+    var isSel=!!pickerSelected[p.id];
+    html+='<div class="search-result-item'+(isSel?' selected':'')+'" onclick="togglePickerSelectSearch(\''+p.id+'\')">'
+      +'<span class="search-result-icon">'+(p.icon_type==='image'&&p.image_url?'📷':esc(p.icon_value||'🛍️'))+'</span>'
+      +'<span class="search-result-name">'+esc(p.name)+'</span>'
+      +(isSel?'<span class="search-result-check">✓</span>':'')
+      +'</div>';
+  });
+  if(matched.length===0){
+    html+='<div class="temp-add-btn" onclick="addTempItem(\''+esc(q)+'\')">'
+      +'<span>🛍️</span><span>「'+esc(q)+'」をとりあえず追加</span></div>';
+  }
+  html+='</div>';
+  resultsEl.innerHTML=html;
+}
+
+function togglePickerSelect(productId){
+  pickerSelected[productId]=!pickerSelected[productId];
+  var card=document.getElementById('tile-pick-'+productId);
+  if(card) card.classList.toggle('grayed',!!pickerSelected[productId]);
+}
+
+function togglePickerSelectSearch(productId){
+  pickerSelected[productId]=!pickerSelected[productId];
+  // re-render search results
+  var q=document.getElementById('pickerSearchInput').value.trim();
+  if(q) onPickerSearch(q);
+}
+
+async function addTempItem(name){
+  closeModal('pickerModal');pickerSelected={};
+  try{
+    var maxO=0;shoppingList.forEach(function(s){if((s.sort_order||0)>maxO)maxO=s.sort_order||0;});
+    var r=await sb.from('shopping_list').insert({temp_name:name,temp_icon:TEMP_ICON,sort_order:maxO+1}).select().single();
+    if(r.data) shoppingList.push(r.data);
+    shopSelected={};renderBuymono();
+  }catch(e){showToast('追加に失敗しました');}
+}
+
+async function confirmPicker(){
+  var selected=Object.keys(pickerSelected).filter(function(id){return pickerSelected[id];});
+  if(selected.length===0){closePickerModal();return;}
+  var maxO=0;shoppingList.forEach(function(s){if((s.sort_order||0)>maxO)maxO=s.sort_order||0;});
+  try{
+    for(var i=0;i<selected.length;i++){
+      var pid=selected[i];maxO++;
+      var r=await sb.from('shopping_list').insert({product_id:pid,sort_order:maxO}).select().single();
+      if(r.data) shoppingList.push(r.data);
+    }
+    closePickerModal();shopSelected={};renderBuymono();
+  }catch(e){showToast('追加に失敗しました');}
+}
+
+// shop select & buy
+function toggleShopSelect(itemId){
+  // itemId could be product id or sl.id for temp
+  shopSelected[itemId]=!shopSelected[itemId];
+  var card=document.getElementById('tile-shop-'+itemId);
+  if(card) card.classList.toggle('grayed',!!shopSelected[itemId]);
+  updateShopFloatBar();
+}
+
+function updateShopFloatBar(){
+  removeFabs();
+  var sel=Object.keys(shopSelected).filter(function(id){return shopSelected[id];});
+  if(!sel.length) return;
+  var bar=document.createElement('div');bar.className='float-bar';
+  bar.innerHTML='<button class="float-btn float-btn-cancel" onclick="cancelShopSelect()">キャンセル</button>'
+    +'<button class="float-btn float-btn-red" onclick="doDeleteShop()">削除</button>'
+    +'<button class="float-btn float-btn-green" onclick="doBuy()">買う ('+sel.length+')</button>';
+  document.getElementById('app').appendChild(bar);
+}
+
+function cancelShopSelect(){shopSelected={};removeFabs();renderBuymono();}
+
+var memoSaveTimers={};
+function saveShopMemo(slId,value){
+  if(!slId) return;
+  clearTimeout(memoSaveTimers[slId]);
+  memoSaveTimers[slId]=setTimeout(async function(){
+    try{
+      await sb.from('shopping_list').update({memo:value}).eq('id',slId);
+      var item=shoppingList.find(function(s){return s.id===slId;});
+      if(item) item.memo=value;
+    }catch(e){}
+  },600);
+}
+
+async function doDeleteShop(){
+  var sel=Object.keys(shopSelected).filter(function(id){return shopSelected[id];});
+  if(!sel.length) return;
+  try{
+    for(var i=0;i<sel.length;i++){
+      var selId=sel[i];
+      var slItem=shoppingList.find(function(s){
+        if(s.temp_name) return s.id===selId;
+        return s.product_id===selId;
+      });
+      if(!slItem) continue;
+      var prod=slItem.product_id?products.find(function(p){return p.id===slItem.product_id;}):null;
+      var isStockProd=prod&&prod.is_stock;
+      // 買うものリストから削除
+      await sb.from('shopping_list').delete().eq('id',slItem.id);
+      shoppingList=shoppingList.filter(function(s){return s.id!==slItem.id;});
+      if(isStockProd){
+        // ストック品: グレーアウト解除（買うと同じ処理）
+        stockStatus[slItem.product_id]='';
+        await sb.from('stock_status').delete().eq('product_id',slItem.product_id);
+      }
+      // 通常品: bought_listには移動しない（そのまま消えるだけ）
+    }
+    shopSelected={};removeFabs();renderBuymono();
+  }catch(e){showToast('失敗しました: '+e.message);}
+}
+
+async function doBuy(){
+  var sel=Object.keys(shopSelected).filter(function(id){return shopSelected[id];});
+  if(!sel.length) return;
+  var maxO=0;boughtList.forEach(function(b){if((b.sort_order||0)>maxO)maxO=b.sort_order||0;});
+  try{
+    for(var i=0;i<sel.length;i++){
+      var selId=sel[i];
+      var slItem=shoppingList.find(function(s){
+        if(s.temp_name) return s.id===selId;
+        return s.product_id===selId;
+      });
+      if(!slItem) continue;
+      // ストック品かどうか確認
+      var prod=slItem.product_id?products.find(function(p){return p.id===slItem.product_id;}):null;
+      var isStockProd=prod&&prod.is_stock;
+      // 買うものリストから削除
+      await sb.from('shopping_list').delete().eq('id',slItem.id);
+      shoppingList=shoppingList.filter(function(s){return s.id!==slItem.id;});
+      if(isStockProd){
+        // ストック品: グレーアウト解除（stock_status削除）してストック画面に戻す
+        stockStatus[slItem.product_id]='';
+        await sb.from('stock_status').delete().eq('product_id',slItem.product_id);
+      } else {
+        // 通常品: bought_listへ
+        maxO++;
+        var ins={sort_order:maxO};
+        if(slItem.temp_name){ins.temp_name=slItem.temp_name;ins.temp_icon=slItem.temp_icon||TEMP_ICON;}
+        else{ins.product_id=slItem.product_id;}
+        var existing=slItem.product_id?boughtList.find(function(b){return b.product_id===slItem.product_id;}):null;
+        if(!existing){
+          var r=await sb.from('bought_list').insert(ins).select().single();
+          if(r.data) boughtList.push(r.data);
+        }
+      }
+    }
+    shopSelected={};removeFabs();renderBuymono();
+  }catch(e){showToast('失敗しました: '+e.message);}
+}
+
+// ===== STOCK =====
+function renderStock(){
+  var boughtItems=getBoughtListItems();
+  var topHtml='';
+  if(boughtItems.length===0){
+    topHtml='<div class="wip-mini"><div class="wip-icon">🛍️</div><div class="wip-title">購入済みなし</div><div class="wip-sub">買うものリストで「買う」を押すとここに表示されます</div></div>';
+  } else {
+    topHtml=buildFlatTiles(boughtItems,'stock-top',boughtSelected);
+  }
+
+  var stockProds=products.filter(function(p){return p.is_stock;});
+  var mainCats=categories.filter(function(c){return !c.parent_id;}).sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
+  var bottomHtml='<div style="padding:8px 12px 120px;">';
+  var usedIds={};
+  mainCats.forEach(function(mc){
+    var subCats=categories.filter(function(c){return c.parent_id===mc.id;}).sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
+    var dps=stockProds.filter(function(p){return p.cat1_id===mc.id&&!p.cat2_id;});
+    var hasAny=dps.length>0||subCats.some(function(sc){return stockProds.some(function(p){return p.cat2_id===sc.id;});});
+    if(!hasAny)return;
+    var sid='stocksec-'+mc.id;
+    bottomHtml+='<div class="sec-item" id="'+sid+'">';
+    bottomHtml+='<div class="sec-header" onclick="toggleSec(\''+sid+'\')">'
+      +'<div class="sec-left"><span class="sec-marker">◆</span><span class="sec-name">'+esc(mc.name)+'</span></div>'
+      +'<div class="sec-right"><span class="sec-chevron">▶</span></div>'
+      +'</div><div class="sec-body stock-sec-body">';
+    if(dps.length>0){bottomHtml+='<div class="tile-grid">';dps.forEach(function(p){usedIds[p.id]=true;bottomHtml+=buildTileCard(p,'stock-bottom',{[p.id]:stockStatus[p.id]==='ng'});});bottomHtml+='</div>';}
+    subCats.forEach(function(sc){
+      var sp=stockProds.filter(function(p){return p.cat2_id===sc.id;});if(!sp.length)return;
+      bottomHtml+='<div class="stock-subcat-label"><div class="stock-subcat-label-line"></div><div class="stock-subcat-label-text">'+esc(sc.name)+'</div><div class="stock-subcat-label-line"></div></div>';
+      bottomHtml+='<div class="tile-grid">';sp.forEach(function(p){usedIds[p.id]=true;bottomHtml+=buildTileCard(p,'stock-bottom',{[p.id]:stockStatus[p.id]==='ng'});});bottomHtml+='</div>';
+    });
+    bottomHtml+='</div></div>';
+  });
+  var uncats=stockProds.filter(function(p){return !usedIds[p.id];});
+  if(uncats.length>0){
+    bottomHtml+='<div class="sec-item" id="stocksec-uncat"><div class="sec-header" onclick="toggleSec(\'stocksec-uncat\')">'
+      +'<div class="sec-left"><span class="sec-marker">◆</span><span class="sec-name">カテゴリ未設定</span></div>'
+      +'<div class="sec-right"><span class="sec-chevron">▶</span></div>'
+      +'</div><div class="sec-body stock-sec-body"><div class="tile-grid">';
+    uncats.forEach(function(p){bottomHtml+=buildTileCard(p,'stock-bottom',{[p.id]:stockStatus[p.id]==='ng'});});
+    bottomHtml+='</div></div></div>';
+  }
+  if(stockProds.length===0) bottomHtml+='<div class="wip-mini"><div class="wip-icon">📦</div><div class="wip-title">ストック品なし</div><div class="wip-sub">設定→商品登録でストック品に設定してください</div></div>';
+  bottomHtml+='</div>';
+
+  var html='<div class="split-screen"><div class="split-top" id="stockTop">'+topHtml+'</div><div class="split-bottom">'+bottomHtml+'</div></div>';
+  renderContent(html);
+  updateBoughtFloatBar();
+}
+
+function toggleBoughtSelect(itemId){
+  boughtSelected[itemId]=!boughtSelected[itemId];
+  var card=document.getElementById('tile-stock-top-'+itemId);
+  if(card) card.classList.toggle('grayed',!!boughtSelected[itemId]);
+  updateBoughtFloatBar();
+}
+
+function updateBoughtFloatBar(){
+  removeFabs();
+  var sel=Object.keys(boughtSelected).filter(function(id){return boughtSelected[id];});
+  if(!sel.length) return;
+  var bar=document.createElement('div');bar.className='float-bar';
+  bar.innerHTML='<button class="float-btn float-btn-cancel" onclick="cancelBoughtSelect()">キャンセル</button>'
+    +'<button class="float-btn float-btn-green" onclick="doGochi()">ゴチ！ ('+sel.length+')</button>';
+  document.getElementById('app').appendChild(bar);
+}
+
+function cancelBoughtSelect(){boughtSelected={};removeFabs();renderStock();}
+
+async function doGochi(){
+  var sel=Object.keys(boughtSelected).filter(function(id){return boughtSelected[id];});
+  if(!sel.length) return;
+  // Find temp items among selected
+  var boughtItems=getBoughtListItems();
+  gochiPendingTempItems=[];
+  var toDelete=[];
+  sel.forEach(function(selId){
+    var item=boughtItems.find(function(b){return b.id===selId;});
+    if(item&&item._isTemp) gochiPendingTempItems.push(item);
+    var blItem=boughtList.find(function(b){
+      if(b.temp_name) return b.id===selId;
+      return b.product_id===selId;
+    });
+    if(blItem) toDelete.push(blItem);
+  });
+  try{
+    for(var i=0;i<toDelete.length;i++){
+      await sb.from('bought_list').delete().eq('id',toDelete[i].id);
+      boughtList=boughtList.filter(function(b){return b.id!==toDelete[i].id;});
+    }
+    boughtSelected={};removeFabs();
+    if(gochiPendingTempItems.length>0){
+      showRegisterTempDialog();
+    } else {
+      renderStock();
+    }
+  }catch(e){showToast('失敗しました');}
+}
+
+function showRegisterTempDialog(){
+  var names=gochiPendingTempItems.map(function(it){return it.name;}).join('、');
+  document.getElementById('confirmTitle').textContent='商品登録しますか？';
+  document.getElementById('confirmSub').textContent='「'+names+'」を商品として登録できます。';
+  var btns=document.getElementById('confirmBtns');
+  btns.innerHTML='<button class="confirm-btn-cancel" onclick="skipTempRegister()">登録しない</button>'
+    +'<button class="confirm-btn-green" onclick="startTempRegister()">登録する</button>';
+  confirmCallback=null;
+  openModal('confirmModal');
+}
+
+function skipTempRegister(){gochiPendingTempItems=[];closeConfirm();renderStock();}
+
+function startTempRegister(){
+  closeConfirm();
+  var item=gochiPendingTempItems.shift();
+  if(!item){renderStock();return;}
+  currentSettingsView='products';
+  document.querySelectorAll('.tab-item').forEach(function(el){el.classList.toggle('active',el.dataset.tab==='settings');});
+  renderProducts();
+  setTimeout(function(){
+    openAddProd();
+    document.getElementById('prodNameInput').value=item.name;
+  },300);
+}
+
+async function toggleStockStatus(productId){
+  var current=stockStatus[productId]||'';
+  var next=(current==='ng')?'':'ng';
+  stockStatus[productId]=next;
+  var card=document.getElementById('tile-stock-bottom-'+productId);
+  if(card) card.classList.toggle('grayed',next==='ng');
+  try{
+    if(next==='ng'){
+      // グレーアウト=買うものリストに追加
+      await sb.from('stock_status').upsert({product_id:productId,status:'ng',updated_at:new Date().toISOString()},{onConflict:'product_id'});
+      // DB側でも重複チェック（ローカルとDB両方確認）
+      var already=shoppingList.find(function(s){return s.product_id===productId;});
+      if(!already){
+        var maxO=0;shoppingList.forEach(function(s){if((s.sort_order||0)>maxO)maxO=s.sort_order||0;});
+        // upsertで重複防止
+        var r=await sb.from('shopping_list').insert({product_id:productId,sort_order:maxO+1}).select().single();
+        if(r.data) shoppingList.push(r.data);
+      }
+    } else {
+      // グレーアウト解除=買うものリストから削除
+      await sb.from('stock_status').delete().eq('product_id',productId);
+      var slItem=shoppingList.find(function(s){return s.product_id===productId;});
+      if(slItem){
+        await sb.from('shopping_list').delete().eq('id',slItem.id);
+        shoppingList=shoppingList.filter(function(s){return s.id!==slItem.id;});
+      }
+    }
+  }catch(e){showToast('保存失敗');}
+}
+
+// ===== SETTINGS =====
+function renderSettings(){removeFabs();if(currentSettingsView==='menu')renderSettingsMenu();else if(currentSettingsView==='products')renderProducts();else if(currentSettingsView==='categories')renderCategories();}
+function renderSettingsMenu(){
+  renderContent('<div class="settings-wrap">'
+    +'<div class="settings-menu-btn" onclick="currentSettingsView=\'products\';renderSettings()">'
+    +'<span class="settings-menu-icon">🏷️</span><div class="settings-menu-text"><div class="settings-menu-title">商品登録 / 編集</div><div class="settings-menu-sub">商品の追加・編集・削除</div></div><span class="settings-menu-arrow">▶</span></div>'
+    +'<div class="settings-menu-btn" onclick="currentSettingsView=\'categories\';renderSettings()">'
+    +'<span class="settings-menu-icon">📂</span><div class="settings-menu-text"><div class="settings-menu-title">カテゴリ登録 / 編集</div><div class="settings-menu-sub">カテゴリの追加・編集・削除</div></div><span class="settings-menu-arrow">▶</span></div>'
+    +'</div>');
+}
+function renderProducts(){
+  var selCount=Object.keys(bulkSelected).filter(function(id){return bulkSelected[id];}).length;
+  var html='<button class="settings-back-btn" onclick="currentSettingsView=\'menu\';renderSettings()">← 設定に戻る</button>';
+  html+='<div class="bulk-action-bar">'
+    +'<button class="bulk-btn'+(bulkMode==='move'?' active':'')+'" onclick="toggleBulkMode(\'move\')">📦 まとめて移動</button>'
+    +'<button class="bulk-btn'+(bulkMode==='stock'?' active':'')+'" onclick="toggleBulkMode(\'stock\')">⭐ まとめてストック登録</button>';
+  if(bulkMode) html+='<button class="bulk-btn" style="color:var(--red);border-color:var(--red);" onclick="cancelBulkMode()">✕ キャンセル</button>'
+    +'<button class="bulk-btn" style="color:var(--green);border-color:var(--green);background:var(--green-light);" onclick="confirmBulkAction()">✓ 実行 ('+selCount+')</button>';
+  html+='</div>';
+  html+='<div class="sec-wrap'+(bulkMode?' bulk-select-mode':'')+'" id="prodSecWrap">'+buildProductAccordion(products,bulkMode?'bulk':'edit',bulkMode?bulkSelected:null,'prod-');
+  if(!products.length) html+='<div class="wip-screen"><div class="wip-icon">📭</div><div class="wip-title">商品がありません</div></div>';
+  html+='</div>';
+  renderContent(html);
+  if(!bulkMode){
+    var fab=document.createElement('button');fab.className='fab';fab.id='addProdFab';fab.textContent='＋';fab.onclick=function(){openAddProd();};document.getElementById('app').appendChild(fab);
+  }
+}
+function renderCategories(){
+  var mcs=categories.filter(function(c){return !c.parent_id;}).sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
+  var html='<button class="settings-back-btn" onclick="currentSettingsView=\'menu\';renderSettings()">← 設定に戻る</button><div class="sec-wrap">';
+  mcs.forEach(function(mc){
+    var scs=categories.filter(function(c){return c.parent_id===mc.id;}).sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
+    html+='<div class="sec-item" id="catsec-'+mc.id+'"><div class="sec-header" onclick="toggleSec(\'catsec-'+mc.id+'\')">'
+      +'<div class="sec-left"><span class="sec-marker">◆</span><span class="sec-name">'+esc(mc.name)+'</span></div>'
+      +'<div class="sec-right"><button class="btn-icon-sm" onclick="event.stopPropagation();openEditMainCat(\''+mc.id+'\')">✏️</button><span class="sec-chevron">▶</span></div>'
+      +'</div><div class="sec-body" style="padding-left:12px;">';
+    scs.forEach(function(sc){html+='<div class="cat-child-item"><div class="cat-child-left"><span class="cat-child-arrow">→</span><span>'+esc(sc.name)+'</span></div><button class="btn-icon-sm" onclick="openEditSubCat(\''+sc.id+'\')">✏️</button></div>';});
+    if(!scs.length) html+='<div class="no-sub-msg">第2カテゴリなし</div>';
+    html+='<button class="add-child-btn" onclick="openAddSubCat(\''+mc.id+'\')">＋ 第2カテゴリを追加</button></div></div>';
+  });
+  html+='<button class="add-main-cat-btn" onclick="openAddMainCat()">＋ 第1カテゴリを追加</button></div>';
+  renderContent(html);
+}
+
+// ===== CAT MODAL =====
+function openAddMainCat(){catModalMode='add-main';catModalParentId=null;catModalTargetId=null;document.getElementById('catModalTitle').textContent='第1カテゴリを追加';document.getElementById('catNameInput').value='';document.getElementById('catDeleteBtn').style.display='none';openModal('catModal');}
+function openEditMainCat(id){var c=categories.find(function(x){return x.id===id;});if(!c)return;catModalMode='edit-main';catModalTargetId=id;document.getElementById('catModalTitle').textContent='第1カテゴリを編集';document.getElementById('catNameInput').value=c.name;document.getElementById('catDeleteBtn').style.display='block';openModal('catModal');}
+function openAddSubCat(pid){catModalMode='add-sub';catModalParentId=pid;catModalTargetId=null;document.getElementById('catModalTitle').textContent='第2カテゴリを追加';document.getElementById('catNameInput').value='';document.getElementById('catDeleteBtn').style.display='none';openModal('catModal');}
+function openEditSubCat(id){var c=categories.find(function(x){return x.id===id;});if(!c)return;catModalMode='edit-sub';catModalTargetId=id;document.getElementById('catModalTitle').textContent='第2カテゴリを編集';document.getElementById('catNameInput').value=c.name;document.getElementById('catDeleteBtn').style.display='block';openModal('catModal');}
+async function saveCat(){
+  var name=document.getElementById('catNameInput').value.trim();if(!name){showToast('カテゴリ名を入力してください');return;}
+  try{
+    if(catModalMode==='add-main'){var maxO=0;categories.filter(function(c){return !c.parent_id;}).forEach(function(c){if((c.sort_order||0)>maxO)maxO=c.sort_order||0;});var r=await sb.from('categories').insert({name:name,parent_id:null,sort_order:maxO+1}).select().single();if(r.error)throw r.error;categories.push(r.data);}
+    else if(catModalMode==='edit-main'||catModalMode==='edit-sub'){var r2=await sb.from('categories').update({name:name}).eq('id',catModalTargetId);if(r2.error)throw r2.error;var c2=categories.find(function(x){return x.id===catModalTargetId;});if(c2)c2.name=name;}
+    else if(catModalMode==='add-sub'){var maxO2=0;categories.filter(function(c){return c.parent_id===catModalParentId;}).forEach(function(c){if((c.sort_order||0)>maxO2)maxO2=c.sort_order||0;});var r3=await sb.from('categories').insert({name:name,parent_id:catModalParentId,sort_order:maxO2+1}).select().single();if(r3.error)throw r3.error;categories.push(r3.data);}
+    closeModal('catModal');showToast('保存しました');renderCategories();
+  }catch(e){showToast('保存に失敗しました: '+e.message);}
+}
+function confirmDeleteCat(){
+  confirmCallback=async function(){
+    try{var r=await sb.from('categories').delete().eq('id',catModalTargetId);if(r.error)throw r.error;
+    if(catModalMode==='edit-main')categories=categories.filter(function(c){return c.id!==catModalTargetId&&c.parent_id!==catModalTargetId;});
+    else categories=categories.filter(function(c){return c.id!==catModalTargetId;});
+    closeModal('catModal');showToast('削除しました');renderCategories();}catch(e){showToast('削除に失敗しました');}
+  };
+  document.getElementById('confirmTitle').textContent='カテゴリを削除しますか？';
+  document.getElementById('confirmSub').textContent='このカテゴリを削除します。';
+  document.getElementById('confirmBtns').innerHTML='<button class="confirm-btn-cancel" onclick="closeConfirm()">キャンセル</button><button class="confirm-btn-ok" onclick="executeConfirm()">削除する</button>';
+  openModal('confirmModal');
+}
+
+// ===== PRODUCT MODAL =====
+function openAddProd(){
+  prodModalMode='add';prodModalTargetId=null;prodIsStock=false;prodIconType='emoji';prodIconValue='🛍️';prodImageFile=null;prodImageUrl=null;
+  document.getElementById('prodModalTitle').textContent='商品を追加';document.getElementById('prodNameInput').value='';document.getElementById('prodDeleteBtn').style.display='none';
+  document.getElementById('iconPreview').innerHTML='<span>🛍️</span>';updateStockToggle();populateCat1Options('');populateCat2Options([]);document.getElementById('emojiPickerWrap').style.display='none';openModal('prodModal');
+}
+function openEditProd(id){
+  var prod=products.find(function(p){return p.id===id;});if(!prod)return;
+  prodModalMode='edit';prodModalTargetId=id;prodIsStock=!!prod.is_stock;prodIconType=prod.icon_type||'emoji';prodIconValue=prod.icon_value||'🛍️';prodImageFile=null;prodImageUrl=prod.image_url||null;
+  document.getElementById('prodModalTitle').textContent='商品を編集';document.getElementById('prodNameInput').value=prod.name||'';document.getElementById('prodDeleteBtn').style.display='block';
+  if(prodIconType==='image'&&prodImageUrl)document.getElementById('iconPreview').innerHTML='<img src="'+prodImageUrl+'" style="width:100%;height:100%;object-fit:cover;border-radius:12px;">';
+  else document.getElementById('iconPreview').innerHTML='<span>'+prodIconValue+'</span>';
+  updateStockToggle();populateCat1Options(prod.cat1_id||'');
+  var cat2s=prod.cat1_id?categories.filter(function(c){return c.parent_id===prod.cat1_id;}).sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);}):[];
+  populateCat2Options(cat2s,prod.cat2_id||'');document.getElementById('emojiPickerWrap').style.display='none';openModal('prodModal');
+}
+function populateCat1Options(sel){var s=document.getElementById('prodCat1Select');var ms=categories.filter(function(c){return !c.parent_id;}).sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});s.innerHTML='<option value="">第1カテゴリを選択</option>';ms.forEach(function(c){var o=document.createElement('option');o.value=c.id;o.textContent=c.name;if(c.id===sel)o.selected=true;s.appendChild(o);});}
+function updateSubCatOptions(){var id=document.getElementById('prodCat1Select').value;var subs=id?categories.filter(function(c){return c.parent_id===id;}).sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);}):[];populateCat2Options(subs,'');}
+function populateCat2Options(subs,sel){var s=document.getElementById('prodCat2Select');s.innerHTML='<option value="">第2カテゴリを選択（任意）</option>';subs.forEach(function(c){var o=document.createElement('option');o.value=c.id;o.textContent=c.name;if(c.id===sel)o.selected=true;s.appendChild(o);});}
+function showEmojiPicker(){var w=document.getElementById('emojiPickerWrap');if(w.style.display!=='none'){w.style.display='none';return;}var g=document.getElementById('emojiGrid');g.innerHTML='';EMOJIS.forEach(function(e){var c=document.createElement('div');c.className='emoji-cell'+(e===prodIconValue&&prodIconType==='emoji'?' selected':'');c.textContent=e;c.onclick=function(){selectEmoji(e);};g.appendChild(c);});w.style.display='block';}
+function selectEmoji(e){prodIconType='emoji';prodIconValue=e;prodImageFile=null;document.getElementById('iconPreview').innerHTML='<span>'+e+'</span>';document.querySelectorAll('.emoji-cell').forEach(function(el){el.classList.toggle('selected',el.textContent===e);});}
+function handleImageUpload(event){
+  var file=event.target.files[0];
+  if(!file)return;
+  prodImageFile=file;prodIconType='image';
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    prodImageUrl=ev.target.result;
+    document.getElementById('iconPreview').innerHTML='<img src="'+prodImageUrl+'" style="width:100%;height:100%;object-fit:cover;border-radius:12px;">';
+    // Ensure modal is still visible after file picker closes
+    var modal=document.getElementById('prodModal');
+    if(modal) modal.classList.add('open');
+    // Reset input so same file can be selected again
+    document.getElementById('imageUploadInput').value='';
+  };
+  reader.readAsDataURL(file);
+  document.getElementById('emojiPickerWrap').style.display='none';
+}
+function toggleStock(){prodIsStock=!prodIsStock;updateStockToggle();}
+function updateStockToggle(){document.getElementById('stockToggle').classList.toggle('on',prodIsStock);}
+async function saveProd(){
+  var name=document.getElementById('prodNameInput').value.trim();if(!name){showToast('商品名を入力してください');return;}
+  var cat1Id=document.getElementById('prodCat1Select').value||null;var cat2Id=document.getElementById('prodCat2Select').value||null;var imageUrl=prodImageUrl;
+  if(prodIconType==='image'&&prodImageFile){
+    try{var ext=prodImageFile.name.split('.').pop();var path='products/'+Date.now()+'.'+ext;var upR=await sb.storage.from('product-images').upload(path,prodImageFile,{upsert:true});if(upR.error)throw upR.error;imageUrl=sb.storage.from('product-images').getPublicUrl(path).data.publicUrl;}
+    catch(e){showToast('画像アップロード失敗: '+e.message);return;}
+  }
+  var payload={name:name,cat1_id:cat1Id,cat2_id:cat2Id,is_stock:prodIsStock,icon_type:prodIconType==='image'?'image':'emoji',icon_value:prodIconType==='emoji'?prodIconValue:null,image_url:prodIconType==='image'?imageUrl:null};
+  try{
+    if(prodModalMode==='add'){var maxO=0;products.forEach(function(p){if((p.sort_order||0)>maxO)maxO=p.sort_order||0;});payload.sort_order=maxO+1;var r=await sb.from('products').insert(payload).select().single();if(r.error)throw r.error;products.push(r.data);}
+    else{var r2=await sb.from('products').update(payload).eq('id',prodModalTargetId);if(r2.error)throw r2.error;var idx=products.findIndex(function(p){return p.id===prodModalTargetId;});if(idx>=0)products[idx]=Object.assign({},products[idx],payload);}
+    closeModal('prodModal');showToast('保存しました');renderProducts();
+    // continue temp register if pending
+    if(gochiPendingTempItems.length>0) setTimeout(startTempRegister,300);
+  }catch(e){showToast('保存に失敗しました: '+e.message);}
+}
+function confirmDeleteProd(){
+  confirmCallback=async function(){
+    try{var r=await sb.from('products').delete().eq('id',prodModalTargetId);if(r.error)throw r.error;products=products.filter(function(p){return p.id!==prodModalTargetId;});closeModal('prodModal');showToast('削除しました');renderProducts();}
+    catch(e){showToast('削除に失敗しました');}
+  };
+  document.getElementById('confirmTitle').textContent='商品を削除しますか？';
+  document.getElementById('confirmSub').textContent='この商品を削除します。';
+  document.getElementById('confirmBtns').innerHTML='<button class="confirm-btn-cancel" onclick="closeConfirm()">キャンセル</button><button class="confirm-btn-ok" onclick="executeConfirm()">削除する</button>';
+  openModal('confirmModal');
+}
+
+init();
+</script>
+</body>
+</html>
